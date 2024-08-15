@@ -7,11 +7,15 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "install-r-apk": "adb -d install .\\android\\app\\build\\outputs\\apk\\release\\app-release.apk",
+    "install-device-apk": "adb -d install ./android/app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
     "react": "18.2.0",
-    "react-native": "0.74.1"
+    "react-native": "0.74.1",
+    "react-native-webrtc": "^124.0.4",
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
