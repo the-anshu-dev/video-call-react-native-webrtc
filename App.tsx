@@ -18,6 +18,7 @@ import {
 import {
   mediaDevices,
   MediaStream,
+  RTCIceCandidate,
   RTCPeerConnection,
   RTCSessionDescription,
   RTCView,
@@ -37,20 +38,25 @@ function App(): React.JSX.Element {
   const [EventMessage, setEventMessage] = useState<String>();
   const [email, setEmail] = useState<string>(''); // State for storing the user-entered email
   const [roomId, setRoomId] = useState<string>('');
-  const peerConnection = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: 'stun:stun.l.google.com:19302',
-      },
-      {
-        urls: 'stun:stun1.l.google.com:19302',
-      },
-      {
-        urls: 'stun:stun2.l.google.com:19302',
-      },
-    ],
-  });
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
 
+  useEffect(() => {
+    peerConnection.current = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302',
+        },
+        {
+          urls: 'stun:stun1.l.google.com:19302',
+        },
+        {
+          urls: 'stun:stun2.l.google.com:19302',
+        },
+      ],
+    });
+  }, []);
+
+  // create socket connection and emit with email and code
   const handleMakeConnection = () => {
     if (!roomId || !email) {
       alert('enter roomid and email');
@@ -68,41 +74,48 @@ function App(): React.JSX.Element {
     setEventMessage('Join Room');
   };
 
+  // --------------------------------------------------------------------------------
+  // when there is new user with same code on server this even trigger
+  // we create offer and send buy socket newly arrived user
+  const createOffer = async () => {
+    try {
+      const offer = await peerConnection.current.createOffer({});
+      await peerConnection.current.setLocalDescription(offer);
+      console.log('offer send to peer');
+      return offer;
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      // Handle error appropriately
+    }
+  };
+
   const handleNewUserJoin = async ({email_id}: any) => {
     if (socket) {
       const offer = await createOffer();
-      console.log('new USer Arrive ', email_id, offer);
+      console.log('new USer Arrive ');
       setEventMessage('new USer Arrive');
       socket.emit('call_user', {email_id, offer});
       setRemoteEmailId(email_id);
     }
   };
+  // --------------------------------------------------------------------------------------
 
-  const handleCallAccepted = async ({ans}: any) => {
+  // --------------------------------------------------------------------------------------
+  // when  newly arrive user receive offer he create ans
+  // and send back to user who start calling
+  const createAns = async (offer: any) => {
     try {
-      console.log('answer recived from peer');
-      setEventMessage('answer recived from peer');
-      const answerDescription = new RTCSessionDescription(ans);
-      await peerConnection.setRemoteDescription(answerDescription);
+      // console.log('offer recived to peer', offer);
+      const offerDescription = new RTCSessionDescription(offer);
+      await peerConnection.current.setRemoteDescription(offerDescription);
+      const answerDescription = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answerDescription);
+      console.log('answer send to peer');
+      return answerDescription;
     } catch (error) {
-      console.error('Error setting setRemoteDescription:', error);
+      console.error('Error creating ans:', error);
     }
   };
-
-  const handleNegotiation = async () => {
-    console.log('negotiationneeded');
-    setEventMessage('negotiationneeded');
-    if (!socket) return null;
-    try {
-      const localOffer = await createOffer();
-      console.log('negotiation needed', localOffer);
-      socket.emit('call_user', {email_id: remoteEmailId, offer: localOffer});
-    } catch (error) {
-      console.error('Error during negotiation:', error);
-      // Handle error appropriately
-    }
-  };
-
   const handleIncommingCall = async (data: any) => {
     if (socket) {
       const {fromEmail, offer} = data;
@@ -112,67 +125,29 @@ function App(): React.JSX.Element {
       setRemoteEmailId(fromEmail);
     }
   };
+  // --------------------------------------------------------------------------------------
 
-  const handleTrackEvent = (event: any): void => {
+  // --------------------------------------------------------------------------------------
+  // when call accepted user Receive the ans of offer
+  // set to there remote description
+  const handleCallAccepted = async ({ans}: any) => {
     try {
-      console.log('remote track event', event);
-      setRemoteStream(event.streams[0]);
+      console.log('answer recived from peer');
+      setEventMessage('answer recived from peer');
+      const answerDescription = new RTCSessionDescription(ans);
+      await peerConnection.current.setRemoteDescription(answerDescription);
     } catch (error) {
-      console.log('error while setting remote stream', error);
+      console.error('Error setting setRemoteDescription:', error);
     }
   };
+  // --------------------------------------------------------------------------------------
 
-  const createOffer = async () => {
-    try {
-      const offer = await peerConnection.createOffer({
-        mandatory: {
-          OfferToReceiveAudio: true,
-          OfferToReceiveVideo: true,
-          VoiceActivityDetection: true,
-        },
-      });
-      await peerConnection.setLocalDescription(offer);
-      console.log('offer send to peer');
-      return offer;
-    } catch (error) {
-      console.error('Error creating offer:', error);
-      // Handle error appropriately
-    }
-  };
-
-  const createAns = async (offer: any) => {
-    try {
-      console.log('offer recived to peer', offer);
-      const offerDescription = new RTCSessionDescription(offer);
-      await peerConnection.setRemoteDescription(offerDescription);
-      const answerDescription = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answerDescription);
-      console.log('answer send to peer');
-      return answerDescription;
-    } catch (error) {
-      console.error('Error creating ans:', error);
-    }
-  };
-
+  // --------------------------------------------------------------------------------------
+  // when user get connected  with socket by  code and email
+  // we get joined_room Event
+  // than we start camera and set Room join
   useEffect(() => {
     if (socket) {
-      const handleRoomJoined = (data: RoomJoinedData) => {
-        console.log('Joined room:', data);
-        setRoomJoin(data.room_id);
-      };
-
-      socket.on('joined_room', handleRoomJoined);
-      setEventMessage('Room joined');
-      // Clean up on unmount
-      return () => {
-        socket.off('joined_room', handleRoomJoined);
-        socket.disconnect(); // Ensure proper disconnection
-      };
-    }
-  }, [socket]);
-
-  useEffect(() => {
-    if (roomJoin) {
       const startStream = async () => {
         try {
           const _stream = await mediaDevices.getUserMedia({
@@ -182,75 +157,125 @@ function App(): React.JSX.Element {
             audio: true,
           });
 
-          _stream
-            .getTracks()
-            .forEach(track => peerConnection.addTrack(track, _stream));
-
           setStream(_stream);
+
+          // Add each track from the local stream to the peer connection
+          _stream.getTracks().forEach(track => {
+            peerConnection.current.addTrack(track, _stream);
+          });
+
+          // Set the stream to be shown locally in the RTCView
+          console.log('Local stream added:', _stream);
         } catch (error) {
           console.error('Error accessing media devices.', error);
         }
       };
 
-      startStream();
+      const handleRoomJoined = (data: RoomJoinedData) => {
+        setRoomJoin(data.room_id);
+        startStream();
+      };
+
+      socket.on('joined_room', handleRoomJoined);
+      setEventMessage('Room joined');
+
+      return () => {
+        socket.off('joined_room', handleRoomJoined);
+        socket.disconnect(); // Ensure proper disconnection
+      };
     }
-  }, [roomJoin]);
+  }, [socket]);
+  // --------------------------------------------------------------------------------------
 
   useEffect(() => {
     if (socket) {
       socket.on('user_joined', handleNewUserJoin);
       socket.on('incomming_call', handleIncommingCall);
       socket.on('call_accepted', handleCallAccepted);
+      socket.on('ice_candidate', async ({candidate}) => {
+        try {
+          if (candidate) {
+            console.log('Received ICE candidate:', candidate);
+            await peerConnection.current.addIceCandidate(
+              new RTCIceCandidate(candidate),
+            );
+          }
+        } catch (error) {
+          console.error('Error adding received ICE candidate', error);
+        }
+      });
 
       return () => {
         socket.off('user_joined', handleNewUserJoin);
         socket.off('incomming_call', handleIncommingCall);
         socket.off('call_accepted', handleCallAccepted);
+        socket.on('ice_candidate', async ({candidate}) => {
+          console.log('Received ICE candidate:', candidate);
+          try {
+            if (candidate) {
+              console.log('Received ICE candidate:', candidate);
+              await peerConnection.current.addIceCandidate(
+                new RTCIceCandidate(candidate),
+              );
+            }
+          } catch (error) {
+            console.error('Error adding received ICE candidate', error);
+          }
+        });
       };
     }
   }, [socket]);
 
   useEffect(() => {
-    peerConnection.addEventListener('negotiationneeded', handleNegotiation);
-
-    return () => {
-      peerConnection.removeEventListener(
-        'negotiationneeded',
-        handleNegotiation,
-      );
-    };
-  }, [peerConnection, handleNegotiation]);
-
-  useEffect(() => {
-    peerConnection.addEventListener('connectionstatechange', event => {
-      switch (peerConnection.connectionState) {
-        case 'closed':
-          // You can handle the call being disconnected here.
-          console.log('call get disconnected');
-
-          break;
-      }
-    });
-  }, [peerConnection]);
-
-  useEffect(() => {
-    try {
-      peerConnection.addEventListener('track', handleTrackEvent);
-      return () => {
-        peerConnection.removeEventListener('track', handleTrackEvent);
+    if (socket && peerConnection.current) {
+      peerConnection.current.onicecandidate = event => {
+        console.log('ice candidate sended', event, remoteEmailId);
+        if (event.candidate && remoteEmailId) {
+          socket.emit('ice_candidate', {
+            email_id: remoteEmailId,
+            candidate: event.candidate,
+          });
+        }
       };
-    } catch (error) {
-      console.error('Error setting up track event listener:', error);
-      // Handle error appropriately
+
+      peerConnection.current.ontrack = event => {
+        console.log('Track received:', event.streams);
+        const [remoteStream] = event.streams;
+
+        if (remoteStream) {
+          console.log('Setting remote stream:', remoteStream);
+          setRemoteStream(remoteStream);
+        }
+      };
+
+      peerConnection.current.onconnectionstatechange = () => {
+        const connectionState = peerConnection.current.connectionState;
+        console.log('Connection State:', connectionState);
+        if (connectionState === 'connected') {
+          console.log('Peers connected');
+        } else if (
+          connectionState === 'disconnected' ||
+          connectionState === 'failed'
+        ) {
+          console.log('Connection failed or disconnected');
+        }
+      };
     }
-  }, [peerConnection, handleTrackEvent]);
+  }, [socket, peerConnection, remoteEmailId]);
+
+  useEffect(() => {
+    if (remoteStream) {
+      console.log('Remote stream state updated:', remoteStream.toURL());
+    }
+  }, [remoteStream]);
 
   return (
     <SafeAreaView style={{flex: 1, backgroundColor: 'black'}}>
       <View style={styles.container}>
+        <Text style={{color: 'white'}}>{remoteEmailId}</Text>
         {stream ? (
           <RTCView
-            streamURL={stream.toURL()}
+            streamURL={stream?.toURL() || ''}
             style={styles.video}
             objectFit="cover"
             mirror={true}
@@ -263,20 +288,20 @@ function App(): React.JSX.Element {
         </Text>
       </View>
 
-      {remoteStream ? (
-        <RTCView
-          objectFit={'cover'}
-          style={{
-            flex: 1,
-            backgroundColor: '#050A0E',
-            margin: 20,
-            marginTop: 250,
-            zIndex: 0,
-          }}
-          streamURL={remoteStream.toURL()}
-          // streamURL={stream.toURL()}
-        />
-      ) : null}
+      <View style={{...styles.container, left: 20}}>
+        <Text style={{color: 'white'}}>remote screen</Text>
+        {remoteStream ? (
+          <RTCView
+            streamURL={remoteStream?.toURL() || ''}
+            style={styles.video}
+            objectFit="cover"
+            mirror={true}
+          />
+        ) : (
+          <Text style={{color: 'white'}}>No remoteStream stream available</Text>
+        )}
+      </View>
+
       <View
         style={{
           width: '100%',
@@ -321,14 +346,12 @@ const styles = StyleSheet.create({
     right: 20,
     width: 100,
     height: 150,
-    zIndex: 10,
     borderRadius: 20,
     backgroundColor: 'red',
   },
   video: {
     width: 100,
     height: 150,
-    zIndex: 10,
   },
   inputContainer: {
     padding: 20,
