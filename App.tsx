@@ -13,8 +13,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+
 import {
   mediaDevices,
   MediaStream,
@@ -31,11 +34,14 @@ interface RoomJoinedData {
 
 function App(): React.JSX.Element {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [roomJoin, setRoomJoin] = useState();
+  const [roomJoin, setRoomJoin] = useState('');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [remoteEmailId, setRemoteEmailId] = useState<String>();
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [EventMessage, setEventMessage] = useState<String>();
+  const [localMicOn, setlocalMicOn] = useState(true);
+  const [localWebcamOn, setlocalWebcamOn] = useState(true);
+
   const [email, setEmail] = useState<string>(''); // State for storing the user-entered email
   const [roomId, setRoomId] = useState<string>('');
   const peerConnection = useRef<RTCPeerConnection | null>(null);
@@ -56,14 +62,23 @@ function App(): React.JSX.Element {
     });
   }, []);
 
+  const generateRandomString = (length = 8) => {
+    return Math.random()
+      .toString(36)
+      .substring(2, 2 + length);
+  };
+
   // create socket connection and emit with email and code
   const handleMakeConnection = () => {
+    // const roomId = generateRandomString(10);
+    // const email = `user${generateRandomString(5)}@example.com`;
     if (!roomId || !email) {
       alert('enter roomid and email');
     }
+    setEventMessage('Connecting...');
 
     console.log('click');
-    setEventMessage('button Click');
+
     if (socket) {
       socket.disconnect();
     }
@@ -71,7 +86,6 @@ function App(): React.JSX.Element {
     const _socket = io('https://ice-server-socket.onrender.com');
     setSocket(_socket);
     _socket.emit('join_room', {room_id: roomId, email_id: email});
-    setEventMessage('Join Room');
   };
 
   // --------------------------------------------------------------------------------
@@ -93,7 +107,6 @@ function App(): React.JSX.Element {
     if (socket) {
       const offer = await createOffer();
       console.log('new USer Arrive ');
-      setEventMessage('new USer Arrive');
       socket.emit('call_user', {email_id, offer});
       setRemoteEmailId(email_id);
     }
@@ -120,7 +133,7 @@ function App(): React.JSX.Element {
     if (socket) {
       const {fromEmail, offer} = data;
       const ans = await createAns(offer);
-      setEventMessage('offer recieved');
+
       socket.emit('call_accepted', {email_id: fromEmail, ans});
       setRemoteEmailId(fromEmail);
     }
@@ -133,7 +146,7 @@ function App(): React.JSX.Element {
   const handleCallAccepted = async ({ans}: any) => {
     try {
       console.log('answer recived from peer');
-      setEventMessage('answer recived from peer');
+
       const answerDescription = new RTCSessionDescription(ans);
       await peerConnection.current.setRemoteDescription(answerDescription);
     } catch (error) {
@@ -173,11 +186,11 @@ function App(): React.JSX.Element {
 
       const handleRoomJoined = (data: RoomJoinedData) => {
         setRoomJoin(data.room_id);
+        setEventMessage('');
         startStream();
       };
 
       socket.on('joined_room', handleRoomJoined);
-      setEventMessage('Room joined');
 
       return () => {
         socket.off('joined_room', handleRoomJoined);
@@ -263,96 +276,186 @@ function App(): React.JSX.Element {
     }
   }, [socket, peerConnection, remoteEmailId]);
 
-  useEffect(() => {
-    if (remoteStream) {
-      console.log('Remote stream state updated:', remoteStream.toURL());
+  const handleHagout = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      setStream(null);
+      setRemoteStream(null);
+      setRoomJoin('');
     }
-  }, [remoteStream]);
+  };
+
+  function toggleMic() {
+    if (stream) {
+      setlocalMicOn(prev => !prev);
+      stream.getAudioTracks().forEach(track => {
+        localMicOn ? (track.enabled = false) : (track.enabled = true);
+      });
+    }
+  }
+
+  // Switch Camera
+  // function switchCamera() {
+  //   localStream.getVideoTracks().forEach((track) => {
+  //     track._switchCamera();
+  //   });
+  // }
+
+  // Enable/Disable Camera
+  function toggleCamera() {
+    if (stream) {
+      setlocalWebcamOn(prev => !prev);
+      stream.getVideoTracks().forEach(track => {
+        localWebcamOn ? (track.enabled = false) : (track.enabled = true);
+      });
+    }
+  }
+
+  function switchCamera() {
+    if (stream) {
+      stream.getVideoTracks().forEach(track => {
+        track._switchCamera();
+      });
+    }
+  }
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor: 'black'}}>
-      <View style={styles.container}>
-        <Text style={{color: 'white'}}>{remoteEmailId}</Text>
-        {stream ? (
-          <RTCView
-            streamURL={stream?.toURL() || ''}
-            style={styles.video}
-            objectFit="cover"
-            mirror={true}
-          />
-        ) : (
-          <Text style={{color: 'white'}}>No video stream available</Text>
-        )}
-        <Text style={{fontSize: 14, color: 'white', marginTop: 10}}>
-          {EventMessage}..
-        </Text>
-      </View>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: 'black',
+      }}>
+      {EventMessage && (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <Text style={{color: 'white'}}>{EventMessage}</Text>
+        </View>
+      )}
 
-      <View style={{...styles.container, left: 20}}>
-        <Text style={{color: 'white'}}>remote screen</Text>
-        {remoteStream ? (
+      {!remoteStream && localWebcamOn && (
+        <RTCView
+          style={{flex: 1}}
+          streamURL={stream?.toURL() || ''}
+          objectFit={'cover'}
+        />
+      )}
+      {remoteStream && (
+        <>
           <RTCView
             streamURL={remoteStream?.toURL() || ''}
-            style={styles.video}
-            objectFit="cover"
+            style={{flex: 1}}
+            objectFit={'cover'}
             mirror={true}
           />
-        ) : (
-          <Text style={{color: 'white'}}>No remoteStream stream available</Text>
-        )}
-      </View>
+          {stream && localWebcamOn && (
+            <RTCView
+              streamURL={stream?.toURL() || ''}
+              style={{
+                height: 150,
+                width: 100,
+                position: 'absolute',
+                top: 20,
+                right: 20,
+              }}
+              objectFit="cover"
+              mirror={true}
+            />
+          )}
+        </>
+      )}
 
-      <View
-        style={{
-          width: '100%',
-          position: 'absolute',
-          bottom: 40,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-        {!roomJoin && (
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#888"
-              onChangeText={setEmail}
-              value={email}
+      {(remoteStream || stream) && (
+        <View
+          style={{
+            height: 100,
+            width: '100%',
+            position: 'absolute',
+            bottom: 0,
+            backgroundColor: 'black',
+            opacity: 0.7, // Slightly increased for better visibility
+            borderTopLeftRadius: 30,
+            borderTopRightRadius: 30,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-around', // Space the buttons evenly
+            paddingHorizontal: 20,
+          }}>
+          {/* Mic Toggle Button */}
+          <TouchableOpacity onPress={toggleMic}>
+            <Icon
+              name={localMicOn ? 'microphone' : 'microphone-slash'}
+              size={30}
+              color="white"
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter room ID"
-              placeholderTextColor="#888"
-              onChangeText={setRoomId}
-              value={roomId}
-              keyboardType="numeric"
-            />
-            <Button
-              onPress={handleMakeConnection}
-              title="call"
-              color={'green'}
-            />
-          </View>
-        )}
-      </View>
+          </TouchableOpacity>
+
+          {/* Speaker Toggle Button */}
+          <TouchableOpacity onPress={toggleCamera}>
+            <Icon name={'camera'} size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {}}>
+            <Icon name={'share-alt'} size={30} color="white" />
+          </TouchableOpacity>
+
+          {/* Call End Button */}
+          <TouchableOpacity
+            onPress={handleHagout}
+            style={{
+              backgroundColor: 'red',
+              borderRadius: 50,
+              paddingVertical: 10,
+              paddingHorizontal: 15,
+            }}>
+            <Icon name="phone" size={30} color="white" />
+          </TouchableOpacity>
+
+          {/* Three Dots Menu Button */}
+          <TouchableOpacity onPress={() => {}}>
+            <Icon name="ellipsis-v" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!roomJoin && (
+        <View
+          style={{
+            width: '100%',
+            position: 'absolute',
+            bottom: 40,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your Name"
+            placeholderTextColor="#888"
+            onChangeText={setEmail}
+            value={email}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter room ID"
+            placeholderTextColor="#888"
+            onChangeText={setRoomId}
+            value={roomId}
+            keyboardType="numeric"
+          />
+          <TouchableOpacity
+            onPress={handleMakeConnection}
+            style={{
+              backgroundColor: 'green',
+              borderRadius: 50,
+              paddingVertical: 10,
+              paddingHorizontal: 15,
+            }}>
+            <Icon name="phone" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    width: 100,
-    height: 150,
-    borderRadius: 20,
-    backgroundColor: 'red',
-  },
-  video: {
-    width: 100,
-    height: 150,
-  },
   inputContainer: {
     padding: 20,
   },
@@ -362,6 +465,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     marginBottom: 10,
+    width: '70%',
     paddingHorizontal: 10,
     color: 'white',
   },
