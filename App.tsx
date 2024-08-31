@@ -8,7 +8,9 @@
 import React, {useEffect, useRef, useState} from 'react';
 
 import {
+  ActivityIndicator,
   Button,
+  Linking,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -27,6 +29,9 @@ import {
   RTCView,
 } from 'react-native-webrtc';
 import {io, Socket} from 'socket.io-client';
+import {loadUser, loadUserList, login} from './src/hook/api';
+import LocalNotification from './src/localNotification/LocalNotification';
+import RemoteNotification from './src/remoteNotification/RemoteNotification';
 
 interface RoomJoinedData {
   room_id: any;
@@ -38,29 +43,17 @@ function App(): React.JSX.Element {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [remoteEmailId, setRemoteEmailId] = useState<String>();
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [EventMessage, setEventMessage] = useState<String>();
+  const [EventMessage, setEventMessage] = useState<String>('');
   const [localMicOn, setlocalMicOn] = useState(true);
   const [localWebcamOn, setlocalWebcamOn] = useState(true);
-
-  const [email, setEmail] = useState<string>(''); // State for storing the user-entered email
-  const [roomId, setRoomId] = useState<string>('');
+  const [password, setPassword] = useState();
+  const [phone, setPhone] = useState();
+  const [me, setMe] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [userList, setUserList] = useState([]);
+  // const [email, setEmail] = useState<string>(''); // State for storing the user-entered email
+  // const [roomId, setRoomId] = useState<string>('');
   const peerConnection = useRef<RTCPeerConnection | null>(null);
-
-  useEffect(() => {
-    peerConnection.current = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: 'stun:stun.l.google.com:19302',
-        },
-        {
-          urls: 'stun:stun1.l.google.com:19302',
-        },
-        {
-          urls: 'stun:stun2.l.google.com:19302',
-        },
-      ],
-    });
-  }, []);
 
   const generateRandomString = (length = 8) => {
     return Math.random()
@@ -69,23 +62,18 @@ function App(): React.JSX.Element {
   };
 
   // create socket connection and emit with email and code
-  const handleMakeConnection = () => {
-    // const roomId = generateRandomString(10);
-    // const email = `user${generateRandomString(5)}@example.com`;
-    if (!roomId || !email) {
-      alert('enter roomid and email');
-    }
-    setEventMessage('Connecting...');
-
-    console.log('click');
+  const handleMakeConnection = (email, roomId) => {
+    console.log(email, roomId);
 
     if (socket) {
-      socket.disconnect();
-    }
+      // const roomId = generateRandomString(10);
+      // const email = `user${generateRandomString(5)}@example.com`;
 
-    const _socket = io('https://ice-server-socket.onrender.com');
-    setSocket(_socket);
-    _socket.emit('join_room', {room_id: roomId, email_id: email});
+      setEventMessage('Connecting...');
+
+      console.log('click');
+      socket.emit('join_room', {room_id: roomId, email_id: email});
+    }
   };
 
   // --------------------------------------------------------------------------------
@@ -144,13 +132,15 @@ function App(): React.JSX.Element {
   // when call accepted user Receive the ans of offer
   // set to there remote description
   const handleCallAccepted = async ({ans}: any) => {
-    try {
-      console.log('answer recived from peer');
+    if (peerConnection.current) {
+      try {
+        console.log('answer recived from peer');
 
-      const answerDescription = new RTCSessionDescription(ans);
-      await peerConnection.current.setRemoteDescription(answerDescription);
-    } catch (error) {
-      console.error('Error setting setRemoteDescription:', error);
+        const answerDescription = new RTCSessionDescription(ans);
+        await peerConnection.current.setRemoteDescription(answerDescription);
+      } catch (error) {
+        console.error('Error setting setRemoteDescription:', error);
+      }
     }
   };
   // --------------------------------------------------------------------------------------
@@ -276,6 +266,50 @@ function App(): React.JSX.Element {
     }
   }, [socket, peerConnection, remoteEmailId]);
 
+  useEffect(() => {
+    peerConnection.current = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302',
+        },
+        {
+          urls: 'stun:stun1.l.google.com:19302',
+        },
+        {
+          urls: 'stun:stun2.l.google.com:19302',
+        },
+      ],
+    });
+
+    const _socket = io('https://ice-server-socket.onrender.com');
+    // _socket.emit('set-status', {code});
+    setSocket(_socket);
+  }, []);
+
+  const handleLogin = async () => {
+    if (!phone && !password) return;
+    setLoading(true);
+    const res = await login(phone, password);
+    console.log(res, 'darsha');
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    const unsub = async () => {
+      setLoading(true);
+      const data = await loadUser();
+
+      setMe(data?.user);
+      if (data?.user) {
+        const {users} = await loadUserList();
+
+        setUserList(users);
+      }
+      setLoading(false);
+    };
+    unsub();
+  }, []);
+
   const handleHagout = () => {
     if (peerConnection.current) {
       peerConnection.current.close();
@@ -319,6 +353,45 @@ function App(): React.JSX.Element {
     }
   }
 
+  useEffect(() => {
+    const handleOpenURL = event => {
+      const url = event.url;
+      // Parse the URL to get parameters
+      const {code, phone} = new URL(url).searchParams;
+
+      if (code && phone) {
+        // Navigate to the room or handle the logic to join the room
+        handleMakeConnection(phone, code);
+      }
+    };
+
+    Linking.addEventListener('url', handleOpenURL);
+
+    // Check if the app was opened via a link
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleOpenURL({url});
+      }
+    });
+
+    return () => {
+      // Linking.removeAllListener('url', handleOpenURL);
+    };
+  }, []);
+  if (loading)
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'black',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+        {/* <Button title={'Click Here'} onPress={LocalNotification} /> */}
+        <ActivityIndicator size="large" color="#00ff00" />
+      </View>
+    );
+
   return (
     <SafeAreaView
       style={{
@@ -331,7 +404,7 @@ function App(): React.JSX.Element {
         </View>
       )}
 
-      {!remoteStream && localWebcamOn && (
+      {!remoteStream && localWebcamOn && stream && (
         <RTCView
           style={{flex: 1}}
           streamURL={stream?.toURL() || ''}
@@ -414,8 +487,46 @@ function App(): React.JSX.Element {
           </TouchableOpacity>
         </View>
       )}
-
-      {!roomJoin && (
+      {userList && !roomJoin && (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'flex-start',
+            marginTop: 20,
+          }}>
+          {!EventMessage &&
+            userList.map(item => (
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: 'gray',
+                  borderRadius: 10,
+                  marginHorizontal: 10,
+                  alignItems: 'center',
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                }}
+                key={item?.phone}>
+                <Text style={{color: 'white'}}>{item?.name}</Text>
+                <TouchableOpacity
+                  onPress={() => handleMakeConnection(item?.phone, item?.code)}
+                  style={{
+                    backgroundColor: 'green',
+                    borderRadius: 50,
+                    paddingVertical: 10,
+                    paddingHorizontal: 15,
+                  }}>
+                  <Icon name="phone" size={30} color="white" />
+                </TouchableOpacity>
+              </View>
+            ))}
+        </View>
+      )}
+      <RemoteNotification />
+      {/* <Button title={'Click Here'} onPress={LocalNotification} /> */}
+      {!me && !EventMessage && (
         <View
           style={{
             width: '100%',
@@ -426,29 +537,20 @@ function App(): React.JSX.Element {
           }}>
           <TextInput
             style={styles.input}
-            placeholder="Enter your Name"
+            placeholder="Enter your Phone no"
             placeholderTextColor="#888"
-            onChangeText={setEmail}
-            value={email}
+            onChangeText={setPhone}
+            value={phone}
           />
           <TextInput
             style={styles.input}
-            placeholder="Enter room ID"
+            placeholder="Enter password"
             placeholderTextColor="#888"
-            onChangeText={setRoomId}
-            value={roomId}
-            keyboardType="numeric"
+            onChangeText={setPassword}
+            value={password}
           />
-          <TouchableOpacity
-            onPress={handleMakeConnection}
-            style={{
-              backgroundColor: 'green',
-              borderRadius: 50,
-              paddingVertical: 10,
-              paddingHorizontal: 15,
-            }}>
-            <Icon name="phone" size={30} color="white" />
-          </TouchableOpacity>
+
+          <Button title="Login" onPress={handleLogin} />
         </View>
       )}
     </SafeAreaView>
