@@ -287,7 +287,7 @@ function App(): React.JSX.Element {
     });
 
     const _socket = io('https://ice-server-socket.onrender.com');
-    // const _socket = io('http://10.0.2.2:8000');
+    // const _socket = io('http://10.0.2.2:8000');c
     // _socket.emit('set-status', {code});
     setSocket(_socket);
   }, []);
