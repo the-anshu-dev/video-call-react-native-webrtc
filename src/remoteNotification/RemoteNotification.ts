@@ -1,43 +1,47 @@
 import { useEffect } from "react";
-import { PermissionsAndroid, Platform } from "react-native";
-import PushNotification from 'react-native-push-notification';
+import messaging from '@react-native-firebase/messaging';
 import { sendTokenToServer } from "../hook/api";
 
-const checkApplicationPermission = async () => {
-    if (Platform.OS === 'android') {
-        try {
-            await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-            );
-        } catch (error) {
-            console.error(error)
-        }
+const requestUserPermission = async () => {
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+  
+    if (enabled) {
+      console.log('Authorization status:', authStatus);
+    } else {
+      console.warn('Notification permission not granted.');
     }
-};
-
-
+  };
 const RemoteNotification = () => {
     useEffect(() => {
-        checkApplicationPermission();
-        // Using this function as we are rendering local notification so without this function we will receive multiple notification for same notification
-        // We have same channelID for every FCM test server notification.
-        PushNotification.getChannels(function (channel_ids) {
-            channel_ids.forEach((id) => {
-                PushNotification.deleteChannel(id)
-            })
-        });
-        PushNotification.configure({
-            // (optional) Called when Token is generated (iOS and Android)
-            onRegister:async function (token) {
-                console.log(token,"register");
-                
-                  token && await sendTokenToServer(token)
-            },
-
-            // (required) Called when a remote or local notification is opened or received
-          
-        });
+      // Request permission for notifications
+      requestUserPermission();
+  
+      // Get FCM token
+      const getFCMToken = async () => {
+        const token = await messaging().getToken();
+        if (token) {
+          console.log('FCM Token:', token);
+          await sendTokenToServer(token); // Send token to your server
+        }
+      };
+  
+      // Register FCM token
+      getFCMToken();
+  
+      // Handle foreground messages
+      const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+        console.log('A new FCM message arrived!', remoteMessage);
+        // You can display a local notification here if needed
+      });
+  
+      // Clean up the listener on unmount
+      return unsubscribe;
     }, []);
+  
     return null;
-};
-export default RemoteNotification;
+  };
+  export default RemoteNotification;
+  

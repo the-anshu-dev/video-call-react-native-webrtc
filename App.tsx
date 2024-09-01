@@ -63,16 +63,21 @@ function App(): React.JSX.Element {
 
   // create socket connection and emit with email and code
   const handleMakeConnection = (email, roomId) => {
-    console.log(email, roomId);
+    try {
+      console.log(email, roomId);
 
-    if (socket) {
-      // const roomId = generateRandomString(10);
-      // const email = `user${generateRandomString(5)}@example.com`;
+      if (socket) {
+        // const roomId = generateRandomString(10);
+        // const email = `user${generateRandomString(5)}@example.com`;
 
-      setEventMessage('Connecting...');
+        setEventMessage('Connecting...');
 
-      console.log('click');
-      socket.emit('join_room', {room_id: roomId, email_id: email});
+        console.log('click');
+        socket.emit('join_room', {room_id: roomId, email_id: email});
+        console.log('click');
+      }
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -282,6 +287,7 @@ function App(): React.JSX.Element {
     });
 
     const _socket = io('https://ice-server-socket.onrender.com');
+    // const _socket = io('http://10.0.2.2:8000');
     // _socket.emit('set-status', {code});
     setSocket(_socket);
   }, []);

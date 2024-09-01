@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const server = "https://ice-server-socket.onrender.com/api/v1"
-// const server = "http://localhost:8000/api/v1"
+// const server = "http://10.0.2.2:8000/api/v1"
 export const loadUser = async () => {
     try {
 
@@ -18,7 +18,7 @@ export const loadUser = async () => {
         return res.data
     } catch (error) {
         console.log("error load user", error);
-        return error.response.data
+        return error.response
     }
 
 }
@@ -68,10 +68,10 @@ export const loadUserList = async () => {
 
 export const sendTokenToServer = async (token) => {
     try {
-        let data = JSON.stringify(token)
+
         console.log("sending token");
         const res = await axios.post(`${server}/save-token`,
-            data, {
+            { token }, {
             headers: {
                 "Content-Type": "application/json"
             },
