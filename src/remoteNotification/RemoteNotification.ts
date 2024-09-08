@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import messaging from '@react-native-firebase/messaging';
 import { sendTokenToServer } from "../hook/api";
+import CallNotification from "../localNotification/LocalNotification";
 
 const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
@@ -35,6 +36,8 @@ const RemoteNotification = () => {
       const unsubscribe = messaging().onMessage(async (remoteMessage) => {
         console.log('A new FCM message arrived!', remoteMessage);
         // You can display a local notification here if needed
+
+        CallNotification(remoteMessage?.notification?.title, remoteMessage?.notification?.body)
       });
   
       // Clean up the listener on unmount

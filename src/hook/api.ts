@@ -16,14 +16,14 @@ export const loadUser = async () => {
 
 
         return res.data
-    } catch (error) {
+    } catch (error:any) {
         console.log("error load user", error);
         return error.response
     }
 
 }
 
-export const login = async (phone, password) => {
+export const login = async (phone:string, password:string) => {
     try {
 
         // Axios
@@ -66,7 +66,7 @@ export const loadUserList = async () => {
 
 }
 
-export const sendTokenToServer = async (token) => {
+export const sendTokenToServer = async (token:string) => {
     try {
 
         console.log("sending token");
