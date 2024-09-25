@@ -13,9 +13,12 @@ workflows:
       - name: Install npm dependencies
         script: |
           npm install
-      - name: Build Android release APK
+      - name: Set executable permission for Gradle wrapper
         script: |
           cd android
+          chmod +x gradlew  # <-- This command adds executable permission to gradlew
+      - name: Build Android release APK
+        script: |
           ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/*.apk
