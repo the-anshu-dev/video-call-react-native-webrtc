@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       vars:
-        PACKAGE_NAME: 'com.yourapp.package'
+        PACKAGE_NAME: 'com.videoCall.package'
     scripts:
       - name: Set Android SDK location
         script: |
@@ -16,9 +16,10 @@ workflows:
       - name: Set executable permission for Gradle wrapper
         script: |
           cd android
-          chmod +x gradlew  # <-- This command adds executable permission to gradlew
+          chmod +x gradlew
       - name: Build Android release APK
         script: |
+          cd android  # Ensure we're in the android folder
           ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/*.apk
