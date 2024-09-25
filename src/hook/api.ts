@@ -5,7 +5,7 @@ const server = "https://ice-server-socket.onrender.com/api/v1"
 export const loadUser = async () => {
     try {
 
-        console.log("darshan");
+    
 
 
         // Axios
@@ -17,7 +17,7 @@ export const loadUser = async () => {
 
         return res.data
     } catch (error:any) {
-        console.log("error load user", error);
+ 
         return error.response
     }
 
@@ -41,8 +41,7 @@ export const login = async (phone:string, password:string) => {
         return res.data
 
     } catch (error) {
-        console.log(error.response.data);
-
+       
         return error.response.data.message
 
     }
@@ -60,7 +59,7 @@ export const loadUserList = async () => {
 
         return res.data
     } catch (error) {
-        console.log("error load user list", error.response.data);
+      
         return error.response.data
     }
 
@@ -69,7 +68,7 @@ export const loadUserList = async () => {
 export const sendTokenToServer = async (token:string) => {
     try {
 
-        console.log("sending token");
+       
         const res = await axios.post(`${server}/save-token`,
             { token }, {
             headers: {
@@ -78,7 +77,7 @@ export const sendTokenToServer = async (token:string) => {
             "withCredentials": true
         }
         );
-        console.log('Device token sent to server successfully!', res.data);
+     
     } catch (error) {
         console.error('Failed to send device token to server:', error);
     }

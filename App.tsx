@@ -59,12 +59,12 @@ function App(): React.JSX.Element {
   const [userList, setUserList] = useState([]);
   // const [email, setEmail] = useState<string>(''); // State for storing the user-entered email
   // const [roomId, setRoomId] = useState<string>('');
+
   const peerConnection = useRef<RTCPeerConnection | null>(null);
 
   // create socket connection and emit with email and code
   const handleMakeConnection = (email: string, roomId: string) => {
     try {
-      console.log(email, roomId);
       let _socket = socket;
       if (!_socket) {
         _socket = io('https://ice-server-socket.onrender.com');
@@ -79,14 +79,12 @@ function App(): React.JSX.Element {
 
         setEventMessage('Connecting...');
 
-        console.log('click');
         _socket.emit('join_room', {room_id: roomId, email_id: email});
-        console.log('click');
       } else {
-        console.log('socket not present');
+        // console.log('socket not present');
       }
     } catch (error) {
-      console.log(error);
+      // console.log(error);
     }
   };
 
@@ -98,7 +96,7 @@ function App(): React.JSX.Element {
     try {
       const offer = await peerConnection.current.createOffer({});
       await peerConnection.current.setLocalDescription(offer);
-      console.log('offer send to peer');
+
       return offer;
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -127,7 +125,7 @@ function App(): React.JSX.Element {
       await peerConnection.current.setRemoteDescription(offerDescription);
       const answerDescription = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answerDescription);
-      console.log('answer send to peer');
+
       return answerDescription;
     } catch (error) {
       console.error('Error creating ans:', error);
@@ -150,8 +148,6 @@ function App(): React.JSX.Element {
   const handleCallAccepted = async ({ans}: any) => {
     if (peerConnection.current) {
       try {
-        console.log('answer recived from peer');
-
         const answerDescription = new RTCSessionDescription(ans);
         await peerConnection.current.setRemoteDescription(answerDescription);
       } catch (error) {
@@ -184,7 +180,6 @@ function App(): React.JSX.Element {
           });
 
           // Set the stream to be shown locally in the RTCView
-          console.log('Local stream added:', _stream);
         } catch (error) {
           console.error('Error accessing media devices.', error);
         }
@@ -214,7 +209,6 @@ function App(): React.JSX.Element {
       socket.on('ice_candidate', async ({candidate}) => {
         try {
           if (candidate) {
-            console.log('Received ICE candidate:', candidate);
             await peerConnection.current.addIceCandidate(
               new RTCIceCandidate(candidate),
             );
@@ -229,10 +223,8 @@ function App(): React.JSX.Element {
         socket.off('incomming_call', handleIncommingCall);
         socket.off('call_accepted', handleCallAccepted);
         socket.on('ice_candidate', async ({candidate}) => {
-          console.log('Received ICE candidate:', candidate);
           try {
             if (candidate) {
-              console.log('Received ICE candidate:', candidate);
               await peerConnection.current.addIceCandidate(
                 new RTCIceCandidate(candidate),
               );
@@ -248,7 +240,6 @@ function App(): React.JSX.Element {
   useEffect(() => {
     if (socket && peerConnection.current) {
       peerConnection.current.onicecandidate = event => {
-        console.log('ice candidate sended', event, remoteEmailId);
         if (event.candidate && remoteEmailId) {
           socket.emit('ice_candidate', {
             email_id: remoteEmailId,
@@ -258,18 +249,16 @@ function App(): React.JSX.Element {
       };
 
       peerConnection.current.ontrack = event => {
-        console.log('Track received:', event.streams);
         const [remoteStream] = event.streams;
 
         if (remoteStream) {
-          console.log('Setting remote stream:', remoteStream);
           setRemoteStream(remoteStream);
         }
       };
 
       peerConnection.current.onconnectionstatechange = () => {
         const connectionState = peerConnection.current.connectionState;
-        console.log('Connection State:', connectionState);
+
         if (connectionState === 'connected') {
           console.log('Peers connected');
         } else if (
@@ -375,8 +364,6 @@ function App(): React.JSX.Element {
   useEffect(() => {
     PushNotification.configure({
       onNotification: async function (notification) {
-        console.log('Notification:', notification); // Log the notification object
-
         const {action, data} = notification;
 
         if (action === 'Accept') {

@@ -7,13 +7,13 @@ const CallNotification = (title: string, message: string) => {
   // Create or update the notification channel
   PushNotification.createChannel(
     {
-      channelId: channelId, // Use a constant channel ID for video calls
-      channelName: 'Incoming Call', // Descriptive name for the channel
-      channelDescription: 'Notifications for incoming video calls', // Optional description
-      importance: 4, // High importance for video call notifications
-      vibrate: true, // Enable vibration for calls
+      channelId: channelId, 
+      channelName: 'Incoming Call', 
+      channelDescription: 'Notifications for incoming video calls', 
+     
+   
     },
-    (created) => console.log(`createChannel returned '${created}'`) // Log if channel is created or already exists
+    (created) => console.log(`createChannel returned '${created}'`) 
   );
 
   // Show the local notification
@@ -28,9 +28,9 @@ const CallNotification = (title: string, message: string) => {
     priority: 'high', // High priority for video call notifications
     importance: 'high', // Set high importance for Android
     ongoing: true, // Make the notification non-dismissable (ongoing)
-    autoCancel: false, // Prevent the notification from being swiped away
-    invokeApp: true, // Ensure the app is launched when tapped
-    // Custom actions for "Accept" and "Reject" will need to be handled
+    autoCancel: false, 
+    invokeApp: true, 
+ 
   });
 };
 
