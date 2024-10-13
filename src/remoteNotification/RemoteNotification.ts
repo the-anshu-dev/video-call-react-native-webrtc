@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import messaging from '@react-native-firebase/messaging';
 import { sendTokenToServer } from "../hook/api";
-import CallNotification from "../localNotification/LocalNotification";
+
+import { showIncomingCallNotification } from "../localNotification/LocalNotification";
 
 const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
@@ -35,10 +36,16 @@ const RemoteNotification = () => {
       // Handle foreground messages
       const unsubscribe = messaging().onMessage(async (remoteMessage) => {
         console.log('A new FCM message arrived!', remoteMessage);
-        // You can display a local notification here if needed
+      
+        const { callerName, callId, isVideo } = remoteMessage.data;
 
-        CallNotification(remoteMessage?.notification?.title, remoteMessage?.notification?.body)
+        if (remoteMessage.data.type === 'call') {
+          showIncomingCallNotification()
+        }
+
       });
+
+      
   
       // Clean up the listener on unmount
       return unsubscribe;

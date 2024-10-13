@@ -4,6 +4,7 @@
  *
  * @format
  */
+import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 
 import React, {useEffect, useRef, useState} from 'react';
 
@@ -34,7 +35,7 @@ import {io, Socket} from 'socket.io-client';
 import {loadUser, loadUserList, login} from './src/hook/api';
 
 import RemoteNotification from './src/remoteNotification/RemoteNotification';
-import PushNotification from 'react-native-push-notification';
+import messaging from '@react-native-firebase/messaging';
 import LoginForm from './src/components/LoginForm';
 import VideoStreamView from './src/components/VideoStreamView';
 import CallControls from './src/components/CallControls';
@@ -362,53 +363,31 @@ function App(): React.JSX.Element {
   }
 
   useEffect(() => {
-    PushNotification.configure({
-      onNotification: async function (notification) {
-        const {action, data} = notification;
+    RNNotificationCall.addEventListener('answer', async data => {
+      console.log('darshan1');
 
-        if (action === 'Accept') {
-          console.log('Call accepted');
-          // Handle the 'Accept' action, such as navigating to a call screen
-          const userData = await loadUser();
-          console.log(userData?.user?.phone, userData?.user?.code);
-          setMe(userData?.user);
+      RNNotificationCall.backToApp();
+      console.log('darshan');
 
-          if (userData?.user) {
-            handleMakeConnection(userData?.user?.name, userData?.user?.code);
-          }
-        } else if (action === 'Reject') {
-          console.log('Call rejected');
+      const {callUUID, payload} = data;
+      console.log('press answer', callUUID);
+      const userData = await loadUser();
+      console.log(userData?.user?.phone, userData?.user?.code);
+      setMe(userData?.user);
 
-          if (data?.callerName) {
-            Alert.alert(`Rejected call from ${data.callerName}`);
-          } else {
-            Alert.alert('Call rejected');
-          }
-        } else {
-          const userData = await loadUser();
-          console.log(userData?.user?.phone, userData?.user?.code);
-          setMe(userData?.user);
-
-          if (userData?.user) {
-            handleMakeConnection(userData?.user?.name, userData?.user?.code);
-          }
-        }
-
-        // Call finish method to complete notification processing
-        notification.finish(PushNotification.FetchResult.NoData);
-      },
-      permissions: {
-        alert: true,
-        badge: true,
-        sound: true,
-      },
-      popInitialNotification: true,
-      requestPermissions: true,
+      if (userData?.user) {
+        handleMakeConnection(userData?.user?.name, userData?.user?.code);
+      }
+    });
+    RNNotificationCall.addEventListener('endCall', data => {
+      const {callUUID, endAction, payload} = data;
+      console.log('press endCall', callUUID);
     });
 
     // Cleanup function on unmount
     return () => {
-      PushNotification.unregister();
+      RNNotificationCall.removeEventListener('answer');
+      RNNotificationCall.removeEventListener('endCall');
     };
   }, []);
 

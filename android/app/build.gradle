@@ -110,6 +110,8 @@ android {
 }
 
 dependencies {
+    implementation platform('com.google.firebase:firebase-bom:32.0.0') // Use the latest version
+    implementation 'com.google.firebase:firebase-messaging'
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 

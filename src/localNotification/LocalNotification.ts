@@ -1,38 +1,34 @@
-import PushNotification from 'react-native-push-notification';
 
-// Create the notification function for incoming calls
-const CallNotification = (title: string, message: string) => {
-  const channelId = 'video-call'; // Define a constant channel ID for video calls
+import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 
-  // Create or update the notification channel
-  PushNotification.createChannel(
+
+
+
+export const showIncomingCallNotification=()=>{
+
+  RNNotificationCall.displayNotification(
+    '22221a97-8eb4-4ac2-b2cf-0a3c0b9100ad',
+    null,
+    30000,
     {
-      channelId: channelId, 
-      channelName: 'Incoming Call', 
-      channelDescription: 'Notifications for incoming video calls', 
-     
-   
-    },
-    (created) => console.log(`createChannel returned '${created}'`) 
+      channelId: 'com.abc.incomingcall',
+      channelName: 'Incoming video call',
+      notificationIcon: 'ic_launcher', //mipmap
+      notificationTitle: 'Linh Vo',
+      notificationBody: 'Incoming video call',
+      answerText: 'Answer',
+      declineText: 'Decline',
+      notificationColor: 'colorAccent',
+      isVideo:true,
+      notificationSound: null, //raw
+      //mainComponent:'MyReactNativeApp',//AppRegistry.registerComponent('MyReactNativeApp', () => CustomIncomingCall);
+      // payload:{name:'Test',Body:'test'}
+    }
   );
+}
 
-  // Show the local notification
-  PushNotification.localNotification({
-    channelId: channelId, // Channel ID should match the one in createChannel
-    title, // Title for the notification (e.g., "John Doe is calling")
-    message, // Message (e.g., "Tap to answer the call")
-    // actions: ['Accept', 'Reject'], // Actions for the notification
-    playSound: true, // Play sound
-    soundName: 'default', // Use the default sound for notifications
-    vibrate: true, // Enable vibration
-    priority: 'high', // High priority for video call notifications
-    importance: 'high', // Set high importance for Android
-    ongoing: true, // Make the notification non-dismissable (ongoing)
-    autoCancel: false, 
-    invokeApp: true, 
- 
-  });
-};
 
-// Export the notification function
-export default CallNotification;
+
+
+
+

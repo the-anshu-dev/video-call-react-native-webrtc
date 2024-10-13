@@ -12,12 +12,15 @@
     "install-device-apk": "adb -d install ./android/app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.0",
     "@react-native-firebase/app": "^20.4.0",
-    "@react-native-firebase/messaging": "^20.4.0",
+    "@react-native-firebase/messaging": "^20.5.0",
     "axios": "^1.7.5",
     "react": "18.2.0",
     "react-native": "0.74.1",
-    "react-native-push-notification": "^8.1.1",
+    "react-native-callkeep": "^4.3.14",
+    "react-native-eventemitter": "^0.0.1",
+    "react-native-full-screen-notification-incoming-call": "^1.0.1",
     "react-native-vector-icons": "^10.1.0",
     "react-native-video": "^6.4.5",
     "react-native-webrtc": "^124.0.4",
